@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Invoice Extractor</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #f0ede6;
+    --border: #d8d4cc;
+    --border2: #c8c4bc;
+    --text: #1a1916;
+    --text2: #6b6860;
+    --text3: #9e9b96;
+    --accent: #1a1916;
+    --green: #2d6a4f;
+    --green-bg: #e8f4ee;
+    --red: #9b2226;
+    --red-bg: #fce8e8;
+    --blue: #1b4f8a;
+    --blue-bg: #e8eef8;
+    --amber: #7a4f00;
+    --amber-bg: #fdf3dc;
+    --radius: 6px;
+    --radius-lg: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; letter-spacing: 0.04em; }
+  .logo span { color: var(--text3); }
+  .header-right { display: flex; gap: 8px; align-items: center; }
+
+  main { max-width: 1600px; margin: 0 auto; padding: 2rem; }
+
+  .upload-section { margin-bottom: 1.5rem; }
+
+  .drop-zone {
+    border: 1.5px dashed var(--border2);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    padding: 2.5rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.drag {
+    border-color: var(--accent);
+    background: var(--surface2);
+  }
+  .drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .drop-icon {
+    width: 40px; height: 40px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 12px;
+    font-size: 18px;
+  }
+  .drop-zone h3 { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  .drop-zone p { font-size: 12px; color: var(--text3); }
+
+  .file-list { display: flex; flex-direction: column; gap: 6px; margin-top: 1rem; }
+  .file-item {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'DM Mono', monospace; font-size: 12px; }
+  .badge {
+    font-size: 10px; font-weight: 500; padding: 2px 8px;
+    border-radius: 20px; white-space: nowrap; letter-spacing: 0.03em;
+    font-family: 'DM Mono', monospace;
+  }
+  .b-wait { background: var(--surface2); color: var(--text3); border: 1px solid var(--border); }
+  .b-proc { background: var(--blue-bg); color: var(--blue); border: 1px solid #b8cce8; }
+  .b-done { background: var(--green-bg); color: var(--green); border: 1px solid #b8dcc8; }
+  .b-err  { background: var(--red-bg); color: var(--red); border: 1px solid #e8c0c0; }
+
+  .toolbar {
+    display: flex; gap: 8px; align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  .spacer { flex: 1; }
+
+  button {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    padding: 7px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border2);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  button:hover { background: var(--surface2); border-color: var(--accent); }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .btn-primary:hover { opacity: 0.85; background: var(--accent); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-ghost { border-color: transparent; background: transparent; color: var(--text2); }
+  .btn-ghost:hover { background: var(--surface2); border-color: var(--border); color: var(--text); }
+  .btn-danger { color: var(--red); border-color: #e8c0c0; }
+  .btn-danger:hover { background: var(--red-bg); }
+  .icon-btn {
+    padding: 4px 6px;
+    border: none;
+    background: none;
+    color: var(--text3);
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 3px;
+  }
+  .icon-btn:hover { color: var(--red); background: var(--red-bg); }
+
+  .progress-wrap { margin-bottom: 1rem; }
+  .progress-label { font-size: 12px; color: var(--text2); margin-bottom: 5px; font-family: 'DM Mono', monospace; }
+  .progress-track { height: 2px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); transition: width 0.3s; }
+
+  .error-banner {
+    background: var(--red-bg);
+    border: 1px solid #e8c0c0;
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--red);
+    margin-bottom: 1rem;
+    font-family: 'DM Mono', monospace;
+    display: none;
+  }
+
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+  .table-scroll {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: calc(100vh - 280px);
+    min-height: 160px;
+    border-radius: var(--radius-lg);
+  }
+  table { width: 100%; border-collapse: collapse; min-width: 2000px; }
+  thead th {
+    background: var(--surface2);
+    padding: 9px 10px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text3);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    white-space: nowrap;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    color: var(--text);
+  }
+  td[contenteditable=true]:focus {
+    outline: 2px solid var(--accent);
+    border-radius: 3px;
+    background: #fffdf8;
+    max-width: none;
+    overflow: visible;
+    white-space: normal;
+    word-break: break-all;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg); }
+  .td-num { color: var(--text3); font-size: 11px; text-align: center; width: 36px; font-family: 'DM Mono', monospace; }
+  .td-file { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); max-width: 120px; }
+  .empty-state { padding: 4rem 2rem; text-align: center; color: var(--text3); font-size: 13px; }
+  .empty-state p { margin-top: 6px; font-size: 12px; }
+
+  .row-count { font-size: 12px; color: var(--text3); font-family: 'DM Mono', monospace; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">INVOICE<span>/</span>EXTRACTOR</div>
+  <div class="header-right">
+    <span class="row-count" id="rowCount">0 rows</span>
+    <button class="btn-ghost" id="exportBtn">Export CSV</button>
+    <button class="btn-ghost" id="exportXlsxBtn">Export Excel</button>
+  </div>
+</header>
+
+<main>
+  <div class="upload-section">
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" multiple accept=".pdf" />
+      <div class="drop-icon">📄</div>
+      <h3>Drop PDFs here or click to select</h3>
+      <p>Multiple files supported — AI will extract data automatically</p>
+    </div>
+    <div class="file-list" id="fileList"></div>
+  </div>
+
+  <div class="error-banner" id="errorBanner"></div>
+
+  <div class="progress-wrap" id="progressWrap" style="display:none;">
+    <div class="progress-label" id="progressLabel">Processing...</div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+
+  <div class="toolbar" id="toolbar" style="display:none;">
+    <button class="btn-primary" id="extractBtn">Extract with AI</button>
+    <button class="btn-danger btn-ghost" id="clearFilesBtn">Clear files</button>
+    <div class="spacer"></div>
+    <button class="btn-ghost" id="clearRowsBtn">Clear table</button>
+  </div>
+
+  <div class="table-card">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="td-num">#</th>
+            <th>Client Name</th>
+            <th>Sent to Castella</th>
+            <th>Internal Ref No.</th>
+            <th>Sort</th>
+            <th>Invoice No.</th>
+            <th>Issue Date</th>
+            <th>Due Date</th>
+            <th>Term</th>
+            <th>Overdue Days</th>
+            <th>Billing Period</th>
+            <th>Project / Description</th>
+            <th>EUR</th>
+            <th>USD</th>
+            <th>JPY</th>
+            <th>Tax Rate</th>
+            <th>Tax Amount</th>
+            <th>Other Amount</th>
+            <th>Total EUR (incl. tax)</th>
+            <th>Bank Account</th>
+            <th>Payment Date</th>
+            <th>Status</th>
+            <th>Paid by</th>
+            <th>Method</th>
+            <th>Payment Office</th>
+            <th>Cost Center</th>
+            <th>Contact Person</th>
+            <th>Department</th>
+            <th>Email</th>
+            <th>Phone Number</th>
+            <th>Note</th>
+            <th>Source File</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="33" class="empty-state">
+            <div>No data yet</div>
+            <p>Upload PDFs and click "Extract with AI" to begin</p>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+const COLS = ['clientName','sentToCastella','internalRef','sort','invoiceNo','issueDate','dueDate','term','overdueDays','billingPeriod','description','eur','usd','jpy','taxRate','taxAmount','otherAmount','totalEur','bankAccount','paymentDate','status','paidBy','method','paymentOffice','costCenter','contactPerson','department','email','phone','note'];
+
+let files = [];
+let rows = [];
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const fileList = document.getElementById('fileList');
+const toolbar = document.getElementById('toolbar');
+const tableBody = document.getElementById('tableBody');
+const progressWrap = document.getElementById('progressWrap');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+const errorBanner = document.getElementById('errorBanner');
+const rowCount = document.getElementById('rowCount');
+
+function showError(msg) {
+  errorBanner.textContent = '⚠ ' + msg;
+  errorBanner.style.display = 'block';
+  setTimeout(() => errorBanner.style.display = 'none', 10000);
+}
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
+fileInput.addEventListener('change', e => { handleFiles(e.target.files); fileInput.value = ''; });
+
+function handleFiles(newFiles) {
+  for (const f of newFiles) {
+    if (f.type === 'application/pdf' && !files.find(x => x.name === f.name)) {
+      files.push({ file: f, name: f.name, status: 'waiting' });
+    }
+  }
+  renderFileList();
+  toolbar.style.display = files.length ? 'flex' : 'none';
+}
+
+function renderFileList() {
+  fileList.innerHTML = '';
+  files.forEach((f, i) => {
+    const map = { waiting:['WAITING','b-wait'], processing:['PROCESSING','b-proc'], done:['DONE','b-done'], error:['ERROR','b-err'] };
+    const [label, cls] = map[f.status] || map.waiting;
+    const el = document.createElement('div');
+    el.className = 'file-item';
+    el.innerHTML = `<span style="font-size:14px;">📄</span><span class="file-name">${f.name}</span><span class="badge ${cls}">${label}</span><button class="icon-btn" data-i="${i}">✕</button>`;
+    fileList.appendChild(el);
+  });
+  fileList.querySelectorAll('.icon-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      files.splice(+btn.dataset.i, 1);
+      renderFileList();
+      toolbar.style.display = files.length ? 'flex' : 'none';
+    });
+  });
+}
+
+async function extractTextFromPDF(file) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let fullText = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    fullText += content.items.map(item => item.str).join(' ') + '\n';
+  }
+  return fullText.trim();
+}
+
+function emptyRow(fname) {
+  const row = { _file: fname };
+  COLS.forEach(c => row[c] = '');
+  return row;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function extractInvoice(text, fname, onWait) {
+  const MAX_RETRIES = 3;
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const response = await fetch('/api/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, filename: fname })
+    });
+    if (response.status === 429) {
+      const waitSec = 60;
+      for (let s = waitSec; s > 0; s--) {
+        onWait(`Rate limit — waiting ${s}s before retry...`);
+        await sleep(1000);
+      }
+      continue;
+    }
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || `Server error ${response.status}`);
+    }
+    const parsed = await response.json();
+    const row = emptyRow(fname);
+    COLS.forEach(k => { if (parsed[k] !== undefined) row[k] = String(parsed[k]); });
+    return row;
+  }
+  throw new Error('Failed after retries (rate limit)');
+}
+
+document.getElementById('extractBtn').addEventListener('click', async () => {
+  const waiting = files.filter(f => f.status === 'waiting');
+  if (!waiting.length) return;
+  errorBanner.style.display = 'none';
+  progressWrap.style.display = 'block';
+  document.getElementById('extractBtn').disabled = true;
+  let done = 0;
+  for (const f of waiting) {
+    f.status = 'processing';
+    renderFileList();
+    progressLabel.textContent = `Processing: ${f.name} (${done + 1}/${waiting.length})`;
+    progressFill.style.width = `${Math.round((done / waiting.length) * 100)}%`;
+    try {
+      const text = await extractTextFromPDF(f.file);
+      const data = await extractInvoice(text, f.name, msg => { progressLabel.textContent = msg; });
+      rows.push(data);
+      f.status = 'done';
+    } catch(e) {
+      f.status = 'error';
+      showError(`"${f.name}": ${e.message}`);
+      rows.push(emptyRow(f.name));
+    }
+    done++;
+    renderFileList();
+    renderTable();
+  }
+  progressFill.style.width = '100%';
+  progressLabel.textContent = `Done — ${done} file(s) processed`;
+  setTimeout(() => { progressWrap.style.display = 'none'; }, 3000);
+  document.getElementById('extractBtn').disabled = false;
+});
+
+document.getElementById('clearFilesBtn').addEventListener('click', () => {
+  files = [];
+  renderFileList();
+  toolbar.style.display = 'none';
+});
+
+document.getElementById('clearRowsBtn').addEventListener('click', () => {
+  if (confirm('テーブルのデータをすべて削除しますか？')) {
+    rows = [];
+    renderTable();
+  }
+});
+
+function renderTable() {
+  rowCount.textContent = rows.length + ' row' + (rows.length !== 1 ? 's' : '');
+  if (!rows.length) {
+    tableBody.innerHTML = '<tr><td colspan="33" class="empty-state"><div>No data yet</div><p>Upload PDFs and click "Extract with AI" to begin</p></td></tr>';
+    return;
+  }
+  tableBody.innerHTML = '';
+  rows.forEach((row, ri) => {
+    const tr = document.createElement('tr');
+    let html = `<td class="td-num">${ri + 1}</td>`;
+    COLS.forEach(col => {
+      const val = (row[col] || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      html += `<td contenteditable="true" data-row="${ri}" data-col="${col}" title="${val}">${val}</td>`;
+    });
+    html += `<td class="td-file" title="${row._file}">${row._file}</td>`;
+    html += `<td><button class="icon-btn" data-ri="${ri}">✕</button></td>`;
+    tr.innerHTML = html;
+    tableBody.appendChild(tr);
+  });
+  tableBody.querySelectorAll('td[contenteditable]').forEach(td => {
+    td.addEventListener('blur', e => {
+      rows[+e.target.dataset.row][e.target.dataset.col] = e.target.textContent.trim();
+    });
+  });
+  tableBody.querySelectorAll('.icon-btn[data-ri]').forEach(btn => {
+    btn.addEventListener('click', () => { rows.splice(+btn.dataset.ri, 1); renderTable(); });
+  });
+}
+
+document.getElementById('exportXlsxBtn').addEventListener('click', () => {
+  if (!rows.length) { showError('No data to export'); return; }
+  const headers = ['#','Client Name','Sent to Castella','Internal Ref No.','Sort','Invoice No.','Issue Date','Due Date','Term','Overdue Days','Billing Period','Project / Description','EUR','USD','JPY','Tax Rate','Tax Amount','Other Amount','Total EUR (incl. tax)','Bank Account','Payment Date','Status','Paid by','Method','Payment Office','Cost Center','Contact Person','Department','Email','Phone Number','Note','Source File'];
+  const data = [headers];
+  rows.forEach((row, i) => {
+    data.push([i + 1, ...COLS.map(c => row[c] || ''), row._file || '']);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Invoices');
+  XLSX.writeFile(wb, 'invoices_' + new Date().toISOString().slice(0,10) + '.xlsx');
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  if (!rows.length) { showError('No data to export'); return; }
+  const headers = ['#','Client Name','Sent to Castella','Internal Ref No.','Sort','Invoice No.','Issue Date','Due Date','Term','Overdue Days','Billing Period','Project / Description','EUR','USD','JPY','Tax Rate','Tax Amount','Other Amount','Total EUR (incl. tax)','Bank Account','Payment Date','Status','Paid by','Method','Payment Office','Cost Center','Contact Person','Department','Email','Phone Number','Note','Source File'];
+  const csvRows = [headers.join(',')];
+  rows.forEach((row, i) => {
+    const vals = [i + 1, ...COLS.map(c => `"${(row[c]||'').replace(/"/g,'""')}"`) , `"${(row._file||'').replace(/"/g,'""')}"`];
+    csvRows.push(vals.join(','));
+  });
+  const blob = new Blob(['\uFEFF' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'invoices_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+});
+</script>
+</body>
+</html>
