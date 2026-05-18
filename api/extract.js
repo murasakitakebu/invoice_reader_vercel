@@ -15,14 +15,14 @@ export default async function handler(req, res) {
 
   const prompt = `You are an invoice data extraction assistant. Extract ALL available information from this invoice PDF and return ONLY a valid JSON object with these exact keys. If a field is not found, use empty string "".
 
-Keys: clientName, sentToCastella, internalRef, sort, invoiceNo, issueDate, dueDate, term, overdueDays, billingPeriod, description, eur, usd, jpy, taxRate, taxAmount, otherAmount, totalEur, bankAccount, paymentDate, status, paidBy, method, paymentOffice, costCenter, contactPerson, department, email, phone, note
+Keys: clientName, sentToCastella, internalRef, sort, invoiceNo, issueDate, dueDate, term, overdueDays, billingPeriod, description, eur, usd, jpy, taxRate, taxAmount, otherAmount, totalEur, bankAccount, paymentDate, paidBy, method, paymentOffice, costCenter, contactPerson, department, email, phone, note
 
 Rules:
+- clientName: use the counterparty company name — NOT "MATSUI SOLUTIONS EUROPE, S.L." or any variant of our own company. If the invoice is issued TO us, use the issuer/vendor name; if issued BY us, use the recipient/client name.
 - issueDate/dueDate/paymentDate: YYYY-MM-DD format
 - eur/usd/jpy/taxAmount/otherAmount/totalEur: numbers only, no currency symbols
 - taxRate: number only e.g. "10" for 10%
 - description: combine project name, job name, item details into one string
-- status: "Unpaid", "Paid", or "Overdue"
 Return ONLY raw JSON, no markdown, no explanation.`;
 
   try {

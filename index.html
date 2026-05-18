@@ -280,7 +280,6 @@
             <th>Total EUR (incl. tax)</th>
             <th>Bank Account</th>
             <th>Payment Date</th>
-            <th>Status</th>
             <th>Paid by</th>
             <th>Method</th>
             <th>Payment Office</th>
@@ -295,7 +294,7 @@
           </tr>
         </thead>
         <tbody id="tableBody">
-          <tr><td colspan="33" class="empty-state">
+          <tr><td colspan="32" class="empty-state">
             <div>No data yet</div>
             <p>Upload PDFs and click "Extract with AI" to begin</p>
           </td></tr>
@@ -306,7 +305,7 @@
 </main>
 
 <script>
-const COLS = ['clientName','sentToCastella','internalRef','sort','invoiceNo','issueDate','dueDate','term','overdueDays','billingPeriod','description','eur','usd','jpy','taxRate','taxAmount','otherAmount','totalEur','bankAccount','paymentDate','status','paidBy','method','paymentOffice','costCenter','contactPerson','department','email','phone','note'];
+const COLS = ['clientName','sentToCastella','internalRef','sort','invoiceNo','issueDate','dueDate','term','overdueDays','billingPeriod','description','eur','usd','jpy','taxRate','taxAmount','otherAmount','totalEur','bankAccount','paymentDate','paidBy','method','paymentOffice','costCenter','contactPerson','department','email','phone','note'];
 
 let files = [];
 let rows = [];
@@ -459,7 +458,7 @@ document.getElementById('clearRowsBtn').addEventListener('click', () => {
 function renderTable() {
   rowCount.textContent = rows.length + ' row' + (rows.length !== 1 ? 's' : '');
   if (!rows.length) {
-    tableBody.innerHTML = '<tr><td colspan="33" class="empty-state"><div>No data yet</div><p>Upload PDFs and click "Extract with AI" to begin</p></td></tr>';
+    tableBody.innerHTML = '<tr><td colspan="32" class="empty-state"><div>No data yet</div><p>Upload PDFs and click "Extract with AI" to begin</p></td></tr>';
     return;
   }
   tableBody.innerHTML = '';
@@ -487,7 +486,7 @@ function renderTable() {
 
 document.getElementById('exportXlsxBtn').addEventListener('click', () => {
   if (!rows.length) { showError('No data to export'); return; }
-  const headers = ['#','Client Name','Sent to Castella','Internal Ref No.','Sort','Invoice No.','Issue Date','Due Date','Term','Overdue Days','Billing Period','Project / Description','EUR','USD','JPY','Tax Rate','Tax Amount','Other Amount','Total EUR (incl. tax)','Bank Account','Payment Date','Status','Paid by','Method','Payment Office','Cost Center','Contact Person','Department','Email','Phone Number','Note','Source File'];
+  const headers = ['#','Client Name','Sent to Castella','Internal Ref No.','Sort','Invoice No.','Issue Date','Due Date','Term','Overdue Days','Billing Period','Project / Description','EUR','USD','JPY','Tax Rate','Tax Amount','Other Amount','Total EUR (incl. tax)','Bank Account','Payment Date','Paid by','Method','Payment Office','Cost Center','Contact Person','Department','Email','Phone Number','Note','Source File'];
   const data = [headers];
   rows.forEach((row, i) => {
     data.push([i + 1, ...COLS.map(c => row[c] || ''), row._file || '']);
@@ -500,7 +499,7 @@ document.getElementById('exportXlsxBtn').addEventListener('click', () => {
 
 document.getElementById('exportBtn').addEventListener('click', () => {
   if (!rows.length) { showError('No data to export'); return; }
-  const headers = ['#','Client Name','Sent to Castella','Internal Ref No.','Sort','Invoice No.','Issue Date','Due Date','Term','Overdue Days','Billing Period','Project / Description','EUR','USD','JPY','Tax Rate','Tax Amount','Other Amount','Total EUR (incl. tax)','Bank Account','Payment Date','Status','Paid by','Method','Payment Office','Cost Center','Contact Person','Department','Email','Phone Number','Note','Source File'];
+  const headers = ['#','Client Name','Sent to Castella','Internal Ref No.','Sort','Invoice No.','Issue Date','Due Date','Term','Overdue Days','Billing Period','Project / Description','EUR','USD','JPY','Tax Rate','Tax Amount','Other Amount','Total EUR (incl. tax)','Bank Account','Payment Date','Paid by','Method','Payment Office','Cost Center','Contact Person','Department','Email','Phone Number','Note','Source File'];
   const csvRows = [headers.join(',')];
   rows.forEach((row, i) => {
     const vals = [i + 1, ...COLS.map(c => `"${(row[c]||'').replace(/"/g,'""')}"`) , `"${(row._file||'').replace(/"/g,'""')}"`];
